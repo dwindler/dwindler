@@ -1,0 +1,41 @@
+{
+  "name": "dwindler",
+  "description": "Simple and boilerplate free redux module factory",
+  "version": "0.1.0",
+  "author": "Ilkka Hänninen",
+  "license": "MIT",
+  "keywords": [
+    "reducer",
+    "redux",
+    "action",
+    "actions",
+    "action creator",
+    "creator",
+    "ducks"
+  ],
+  "module": "esm/index.js",
+  "main": "cjs/index.js",
+  "files": [
+    "esm",
+    "cjs"
+  ],
+  "scripts": {
+    "build": "babel esm --out-dir cjs",
+    "prepublishOnly": "npm run build",
+    "pretest": "babel esm --out-dir cjs",
+    "test": "tape test/* | tap-spec"
+  },
+  "dependencies": {
+    "ramda": "^0.25.0"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-preset-env": "^1.6.1",
+    "eslint": "^4.15.0",
+    "eslint-plugin-prettier": "^2.5.0",
+    "prettier": "^1.10.2",
+    "redux": "^3.7.2",
+    "tap-spec": "^4.1.1",
+    "tape": "^4.8.0"
+  }
+}

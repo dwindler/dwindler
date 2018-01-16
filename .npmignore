@@ -1,0 +1,6 @@
+.eslintrc
+.prettierrc
+.gitignore
+/node_modules
+/src
+/test
