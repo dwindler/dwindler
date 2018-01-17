@@ -2,6 +2,14 @@
   "name": "dwindler",
   "description": "Simple and boilerplate free redux module factory",
   "version": "0.1.0",
+  "homepage": "https://github.com/ilkkahanninen/dwindler",
+  "bugs": {
+    "url": "https://github.com/ilkkahanninen/dwindler/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ilkkahanninen/dwindler"
+  },
   "author": "Ilkka Hänninen",
   "license": "MIT",
   "keywords": [
