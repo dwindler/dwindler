@@ -330,10 +330,13 @@ const app = node({
 Dwindler provides `testHarness(node)` function to test your nodes easily. It returns an object which contains bound versions of action creators and following methods:
 
 - `willMutate(type, payload, finalState)` defines an expected mutation/action from the action creator. If an argument is undefined/null it will not be tested.
+- `mutate(type, payload)` dispatches the mutation and returns the new state.
 - `getErrors()` returns an array of error strings from the validation. If there is no errors this array is empty.
 - `hasErrors()` returns true if there is one or more errors.
+- `actions` contains all node's action creators.
 
-Example unit test with [Tape](https://github.com/substack/tape):
+This example unit test uses [Tape](https://github.com/substack/tape) but you
+should be able to use `testHarness()` with any JS testing framework.
 
 ```javascript
 const test = require('tape');
@@ -364,9 +367,15 @@ test('Updating user node state works', t => {
   // Run action creators
   userTest.actions.setName('Mary');
   userTest.actions.setEmail('mary@email.com');
+  t.equal(userTest.getErrors(), []); // We should not have errors
 
-  // Check results
-  t.equal(userTest.getErrors(), []);
+  // Test nameChanged mutation independently
+  t.deepEqual(
+    userTest.mutate('nameChanged', 'John'),     // Run mutation
+    { name: 'John', email: 'mary@email.com' },  // Expected state after
+    'nameChanged mutation works'
+  );
+
   t.end();
 });
 ```

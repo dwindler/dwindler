@@ -106,6 +106,7 @@ export default (declaration = {}) => {
     state,
     reducer,
     getActions,
-    setPrefix: updateTypeNames
+    setPrefix: updateTypeNames,
+    createTypeName
   };
 };

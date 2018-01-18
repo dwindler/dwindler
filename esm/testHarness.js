@@ -51,6 +51,13 @@ export default node => {
         state
       });
     },
+    mutate(type, payload) {
+      store.dispatch({
+        type: node.createTypeName(type),
+        payload
+      });
+      return store.getState();
+    },
     hasErrors() {
       return errors.length > 1;
     },

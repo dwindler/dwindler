@@ -113,3 +113,21 @@ test('Action creator using getAppState() does not generate errors', t => {
   t.doesNotThrow(rootTest.actions.right.copyFromLeft);
   t.end();
 });
+
+test('Mutations can be tested correctly', t => {
+  const calc = node({
+    name: 'calc',
+    state: {
+      value: 0
+    },
+    mutations: {
+      add: (state, n) => ({ value: state.value + n }),
+      multiply: (state, n) => ({ value: state.value * n })
+    }
+  });
+
+  const calcTest = testHarness(calc);
+  t.deepEqual(calcTest.mutate('add', 5), { value: 5 }, 'add works');
+  t.deepEqual(calcTest.mutate('multiply', 2), { value: 10 }, 'multiply works');
+  t.end();
+});
