@@ -1,12 +1,21 @@
-const R = require('ramda');
+import {
+  forEach,
+  forEachObjIndexed,
+  intersection,
+  keys,
+  map,
+  values,
+  zipObj
+} from 'ramda';
 
-const assertError = msg => {
+export const assertError = msg => {
   throw new TypeError(`Dwindler assertion: ${msg}`);
 };
 
-const isStrictlyObject = x =>
+export const isStrictlyObject = x =>
   typeof x === 'object' && !Array.isArray(x) && x != null;
-const isNode = x =>
+
+export const isBundle = x =>
   isStrictlyObject(x) &&
   typeof x.name === 'string' &&
   typeof x.reducer === 'function' &&
@@ -14,10 +23,10 @@ const isNode = x =>
   typeof x.getActions === 'function' &&
   typeof x.state === 'object';
 
-const mapObjKeys = (func, obj) =>
-  R.zipObj(R.map(func, R.keys(obj)), R.values(obj));
+export const mapObjKeys = (func, obj) =>
+  zipObj(map(func, keys(obj)), values(obj));
 
-const assertString = (str, valueName) => {
+export const assertString = (str, valueName) => {
   if (typeof str !== 'string' && typeof str !== 'number') {
     assertError(`Invalid "${valueName}" property: ${str}`);
   }
@@ -26,8 +35,8 @@ const assertString = (str, valueName) => {
   }
 };
 
-const assertDuplications = (a, b, description) => {
-  const duplicates = R.intersection(a, b);
+export const assertDuplications = (a, b, description) => {
+  const duplicates = intersection(a, b);
   if (duplicates.length > 0) {
     assertError(
       `Conflict - ${description} have conflicting values: ${duplicates.join(
@@ -37,7 +46,7 @@ const assertDuplications = (a, b, description) => {
   }
 };
 
-const assertState = state => {
+export const assertState = state => {
   if (state != null) {
     if (!isStrictlyObject(state)) {
       assertError(`Invalid state (expected an object): ${state}`);
@@ -45,29 +54,31 @@ const assertState = state => {
   }
 };
 
-const assertMutations = mutations => {
-  if (mutations != null) {
-    if (!isStrictlyObject(mutations)) {
-      assertError(`Invalid mutations (expected an object): ${mutations}`);
+export const assertReducers = reducers => {
+  if (reducers != null) {
+    if (!isStrictlyObject(reducers)) {
+      assertError(
+        `Invalid property "reducers" (expected an object): ${reducers}`
+      );
     }
-    R.forEachObjIndexed((mutation, name) => {
-      if (typeof mutation !== 'function' && !isStrictlyObject(mutation)) {
+    forEachObjIndexed((reducer, name) => {
+      if (typeof reducer !== 'function' && !isStrictlyObject(reducer)) {
         assertError(
-          `Invalid mutation (expeced a function or an object) ${name}: ${mutation}`
+          `Invalid reducer (expeced a function or an object) ${name}: ${reducer}`
         );
       }
-    }, mutations);
+    }, reducers);
   }
 };
 
-const assertActions = actions => {
+export const assertActions = actions => {
   if (actions != null) {
     if (!isStrictlyObject(actions)) {
       assertError(
         `Invalid actions (expected an object of functions): ${actions}`
       );
     }
-    R.forEachObjIndexed((action, name) => {
+    forEachObjIndexed((action, name) => {
       if (typeof action !== 'function') {
         assertError(
           `Invalid action creator (expected a function) ${name}: ${action}`
@@ -77,14 +88,14 @@ const assertActions = actions => {
   }
 };
 
-const assertChildren = children => {
+export const assertChildren = children => {
   if (children != null) {
     if (!Array.isArray(children)) {
       assertError(`Invalid children (expected an array): ${children}`);
     }
-    R.forEach(child => {
-      if (!isNode(child)) {
-        assertError(`Invalid child (expected a node): ${child}`);
+    forEach(child => {
+      if (!isBundle(child)) {
+        assertError(`Invalid child (expected a bundle): ${child}`);
       }
     }, children);
   }
@@ -92,8 +103,8 @@ const assertChildren = children => {
 
 // Dev tool
 
-const printActions = (actions, prefix = 'actions') => {
-  R.forEachObjIndexed((action, name) => {
+export const printActions = (actions, prefix = 'actions') => {
+  forEachObjIndexed((action, name) => {
     const fullName = prefix + '.' + name;
     if (typeof action === 'function') {
       // eslint-disable-next-line no-undef, no-console
@@ -102,15 +113,4 @@ const printActions = (actions, prefix = 'actions') => {
       printActions(action, fullName);
     }
   })(actions);
-};
-
-module.exports = {
-  mapObjKeys,
-  assertString,
-  assertDuplications,
-  assertState,
-  assertMutations,
-  assertActions,
-  assertChildren,
-  printActions
 };

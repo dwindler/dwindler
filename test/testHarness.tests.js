@@ -1,8 +1,8 @@
 const test = require('tape');
-const { node, testHarness } = require('..');
+const { bundle, testHarness } = require('..');
 
-test('Correctly mutation action creator does not generate errors', t => {
-  const user = node({
+test('Correctly implemented action creator does not generate errors', t => {
+  const user = bundle({
     name: 'user',
     state: {
       isLoading: false,
@@ -10,26 +10,26 @@ test('Correctly mutation action creator does not generate errors', t => {
     },
     actions: {
       getName() {
-        this.mutate('start');
-        this.mutate('success', 'Mary');
+        this.dispatch('start');
+        this.dispatch('success', 'Mary');
       }
     },
-    mutations: {
+    reducers: {
       start: { isLoading: true },
       success: (state, name) => ({ isLoading: false, name })
     }
   });
 
   const userTest = testHarness(user);
-  userTest.willMutate('start', null, { isLoading: true, name: null });
-  userTest.willMutate('success', 'Mary', { isLoading: false, name: 'Mary' });
+  userTest.expectAction('start', null, { isLoading: true, name: null });
+  userTest.expectAction('success', 'Mary', { isLoading: false, name: 'Mary' });
 
   t.doesNotThrow(userTest.actions.getName);
   t.end();
 });
 
-test('Incorrectly mutating action creator does not generate errors', t => {
-  const user = node({
+test('Incorrectly implemented action creator generates errors', t => {
+  const user = bundle({
     name: 'user',
     state: {
       isLoading: false,
@@ -37,26 +37,26 @@ test('Incorrectly mutating action creator does not generate errors', t => {
     },
     actions: {
       getName() {
-        this.mutate('start');
-        this.mutate('success', 'Mary');
+        this.dispatch('start');
+        this.dispatch('success', 'Mary');
       }
     },
-    mutations: {
+    reducers: {
       start: { isLoading: true },
       success: (state, name) => ({ name })
     }
   });
 
   const userTest = testHarness(user);
-  userTest.willMutate('start', null, { isLoading: true, name: null });
-  userTest.willMutate('success', 'Mary', { isLoading: false, name: 'Mary' });
+  userTest.expectAction('start', null, { isLoading: true, name: null });
+  userTest.expectAction('success', 'Mary', { isLoading: false, name: 'Mary' });
 
   t.throws(userTest.actions.getName);
   t.end();
 });
 
 test('Action creator using getState() does not generate errors', t => {
-  const counter = node({
+  const counter = bundle({
     name: 'counter',
     state: {
       value: 1
@@ -69,21 +69,21 @@ test('Action creator using getState() does not generate errors', t => {
   });
 
   const counterTest = testHarness(counter);
-  counterTest.willMutate('setState', { value: 2 }, { value: 2 });
+  counterTest.expectAction('setState', { value: 2 }, { value: 2 });
 
   t.doesNotThrow(counterTest.actions.increase);
   t.end();
 });
 
 test('Action creator using getAppState() does not generate errors', t => {
-  const left = node({
+  const left = bundle({
     name: 'left',
     state: {
       value: 'left'
     }
   });
 
-  const right = node({
+  const right = bundle({
     name: 'right',
     state: {
       value: null
@@ -95,13 +95,13 @@ test('Action creator using getAppState() does not generate errors', t => {
     }
   });
 
-  const root = node({
+  const root = bundle({
     name: 'root',
     children: [left, right]
   });
 
   const rootTest = testHarness(root);
-  rootTest.willMutate(
+  rootTest.expectAction(
     'setState',
     { value: 'left' },
     {
@@ -114,20 +114,24 @@ test('Action creator using getAppState() does not generate errors', t => {
   t.end();
 });
 
-test('Mutations can be tested correctly', t => {
-  const calc = node({
+test('Reducers can be tested correctly', t => {
+  const calc = bundle({
     name: 'calc',
     state: {
       value: 0
     },
-    mutations: {
+    reducers: {
       add: (state, n) => ({ value: state.value + n }),
       multiply: (state, n) => ({ value: state.value * n })
     }
   });
 
   const calcTest = testHarness(calc);
-  t.deepEqual(calcTest.mutate('add', 5), { value: 5 }, 'add works');
-  t.deepEqual(calcTest.mutate('multiply', 2), { value: 10 }, 'multiply works');
+  t.deepEqual(calcTest.dispatch('add', 5), { value: 5 }, 'add works');
+  t.deepEqual(
+    calcTest.dispatch('multiply', 2),
+    { value: 10 },
+    'multiply works'
+  );
   t.end();
 });

@@ -1,37 +1,45 @@
 const test = require('tape');
-const { node } = require('..');
+const { bundle } = require('..');
 const { createStore } = require('redux');
 const { merge } = require('ramda');
 
 const assertRegexp = /Dwindler assertion/;
 
 test('Accept declaration with only name', t => {
-  t.doesNotThrow(() => node({ name: 'test' }), 'name is string');
-  t.doesNotThrow(() => node({ name: 12345 }), 'name is number');
-  t.doesNotThrow(() => node({ name: 0 }), 'name is zero');
+  t.doesNotThrow(() => bundle({ name: 'test' }), 'name is string');
+  t.doesNotThrow(() => bundle({ name: 12345 }), 'name is number');
+  t.doesNotThrow(() => bundle({ name: 0 }), 'name is zero');
   t.end();
 });
 
 test('Throw error if declaration has no name or it is invalid', t => {
-  t.throws(() => node({}), assertRegexp, 'no name');
-  t.throws(() => node({ name: null }), assertRegexp, 'name is null');
-  t.throws(() => node({ name: '' }), assertRegexp, 'name is an empty string');
-  t.throws(() => node({ name: {} }), assertRegexp, 'name is an object');
-  t.throws(() => node({ name: [] }), assertRegexp, 'name is an array');
-  t.throws(() => node({ name: () => 'foo' }), assertRegexp, 'name is function');
-  t.throws(() => node({ name: false }), assertRegexp, 'name is boolean false');
-  t.throws(() => node({ name: true }), assertRegexp, 'name is boolean true');
+  t.throws(() => bundle({}), assertRegexp, 'no name');
+  t.throws(() => bundle({ name: null }), assertRegexp, 'name is null');
+  t.throws(() => bundle({ name: '' }), assertRegexp, 'name is an empty string');
+  t.throws(() => bundle({ name: {} }), assertRegexp, 'name is an object');
+  t.throws(() => bundle({ name: [] }), assertRegexp, 'name is an array');
+  t.throws(
+    () => bundle({ name: () => 'foo' }),
+    assertRegexp,
+    'name is function'
+  );
+  t.throws(
+    () => bundle({ name: false }),
+    assertRegexp,
+    'name is boolean false'
+  );
+  t.throws(() => bundle({ name: true }), assertRegexp, 'name is boolean true');
   t.end();
 });
 
-test('Creates a single node with correct properties', t => {
+test('Creates a single bundle with correct properties', t => {
   try {
     const initialState = {
       str: 'foobar',
       value: 10
     };
 
-    const root = node({
+    const root = bundle({
       name: 'root',
       state: initialState
     });
@@ -47,16 +55,16 @@ test('Creates a single node with correct properties', t => {
   }
 });
 
-test('Creates a node tree with correctly assigned state', t => {
+test('Creates a bundle tree with correctly assigned state', t => {
   try {
-    const grandchild = node({
+    const grandchild = bundle({
       name: 'grandchild',
       state: {
         step: 'grandchild'
       }
     });
 
-    const child = node({
+    const child = bundle({
       name: 'child',
       children: [grandchild],
       state: {
@@ -64,7 +72,7 @@ test('Creates a node tree with correctly assigned state', t => {
       }
     });
 
-    const root = node({
+    const root = bundle({
       name: 'root',
       children: [child],
       state: {
@@ -91,9 +99,9 @@ test('Creates a node tree with correctly assigned state', t => {
   }
 });
 
-test('Creates a single node with working action creators', t => {
+test('Creates a single bundle with working action creators', t => {
   try {
-    const root = node({
+    const root = bundle({
       name: 'root',
       state: {
         a: false,
@@ -102,7 +110,7 @@ test('Creates a single node with working action creators', t => {
         d: 10,
         e: null
       },
-      mutations: {
+      reducers: {
         mutateB: {
           b: true
         },
@@ -115,10 +123,10 @@ test('Creates a single node with working action creators', t => {
           this.setState({ a: true });
         },
         b() {
-          this.mutate('mutateB');
-          this.mutate('mutateC');
-          this.mutate('mutateD');
-          this.mutate('mutateE', 'hello');
+          this.dispatch('mutateB');
+          this.dispatch('mutateC');
+          this.dispatch('mutateD');
+          this.dispatch('mutateE', 'hello');
         }
       }
     });
@@ -157,9 +165,9 @@ test('Creates a single node with working action creators', t => {
   }
 });
 
-test('Creates a node tree with correctly assigned action creators', t => {
+test('Creates a bundle tree with correctly assigned action creators', t => {
   try {
-    const grandchild = node({
+    const grandchild = bundle({
       name: 'grandchild',
       state: {
         step: 'grandchild'
@@ -171,7 +179,7 @@ test('Creates a node tree with correctly assigned action creators', t => {
       }
     });
 
-    const child = node({
+    const child = bundle({
       name: 'child',
       children: [grandchild],
       state: {
@@ -184,7 +192,7 @@ test('Creates a node tree with correctly assigned action creators', t => {
       }
     });
 
-    const root = node({
+    const root = bundle({
       name: 'root',
       children: [child],
       state: {
@@ -233,12 +241,12 @@ test('Creates a node tree with correctly assigned action creators', t => {
   }
 });
 
-test('Creating a node tree with conflicting child and state names throws an error', t => {
+test('Creating a bundle tree with conflicting child and state names throws an error', t => {
   try {
-    const value = node({ name: 'value' });
+    const value = bundle({ name: 'value' });
     t.throws(
       () =>
-        node({
+        bundle({
           name: 'root',
           children: [value],
           state: {
@@ -253,243 +261,243 @@ test('Creating a node tree with conflicting child and state names throws an erro
   }
 });
 
-test('Creating a node with invalid state throws an error', t => {
+test('Creating a bundle with invalid state throws an error', t => {
   t.throws(
-    () => node({ name: 'x', state: 'foobar' }),
+    () => bundle({ name: 'x', state: 'foobar' }),
     assertRegexp,
     'state is a string'
   );
   t.throws(
-    () => node({ name: 'x', state: 123 }),
+    () => bundle({ name: 'x', state: 123 }),
     assertRegexp,
     'state is a number'
   );
   t.throws(
-    () => node({ name: 'x', state: [] }),
+    () => bundle({ name: 'x', state: [] }),
     assertRegexp,
     'state is an array'
   );
   t.throws(
-    () => node({ name: 'x', state: () => null }),
+    () => bundle({ name: 'x', state: () => null }),
     assertRegexp,
     'state is a function'
   );
   t.throws(
-    () => node({ name: 'x', state: true }),
+    () => bundle({ name: 'x', state: true }),
     assertRegexp,
     'state is boolean true'
   );
   t.throws(
-    () => node({ name: 'x', state: false }),
+    () => bundle({ name: 'x', state: false }),
     assertRegexp,
     'state is boolean false'
   );
   t.end();
 });
 
-test('Creating a node with invalid mutations throws an error', t => {
+test('Creating a bundle with invalid reducers throws an error', t => {
   t.throws(
-    () => node({ name: 'x', mutations: 'foobar' }),
+    () => bundle({ name: 'x', reducers: 'foobar' }),
     assertRegexp,
-    'mutations is a string'
+    'reducers is a string'
   );
   t.throws(
-    () => node({ name: 'x', mutations: 123 }),
+    () => bundle({ name: 'x', reducers: 123 }),
     assertRegexp,
-    'mutations is a number'
+    'reducers is a number'
   );
   t.throws(
-    () => node({ name: 'x', mutations: [] }),
+    () => bundle({ name: 'x', reducers: [] }),
     assertRegexp,
-    'mutations is an array'
+    'reducers is an array'
   );
   t.throws(
-    () => node({ name: 'x', mutations: () => null }),
+    () => bundle({ name: 'x', reducers: () => null }),
     assertRegexp,
-    'mutations is a function'
+    'reducers is a function'
   );
   t.throws(
-    () => node({ name: 'x', mutations: true }),
+    () => bundle({ name: 'x', reducers: true }),
     assertRegexp,
-    'mutations is boolean true'
+    'reducers is boolean true'
   );
   t.throws(
-    () => node({ name: 'x', mutations: false }),
+    () => bundle({ name: 'x', reducers: false }),
     assertRegexp,
-    'mutations is boolean false'
+    'reducers is boolean false'
   );
   t.throws(
-    () => node({ name: 'x', mutations: { a: 'foo' } }),
+    () => bundle({ name: 'x', reducers: { a: 'foo' } }),
     assertRegexp,
-    'mutations is an object with a string'
+    'reducers is an object with a string'
   );
   t.throws(
-    () => node({ name: 'x', mutations: { a: 123 } }),
+    () => bundle({ name: 'x', reducers: { a: 123 } }),
     assertRegexp,
-    'mutations is an object with a number'
+    'reducers is an object with a number'
   );
   t.throws(
-    () => node({ name: 'x', mutations: { a: null } }),
+    () => bundle({ name: 'x', reducers: { a: null } }),
     assertRegexp,
-    'mutations is an object with null'
+    'reducers is an object with null'
   );
   t.throws(
-    () => node({ name: 'x', mutations: { a: [] } }),
+    () => bundle({ name: 'x', reducers: { a: [] } }),
     assertRegexp,
-    'mutations is an object with an array'
+    'reducers is an object with an array'
   );
   t.throws(
-    () => node({ name: 'x', mutations: { a: true } }),
+    () => bundle({ name: 'x', reducers: { a: true } }),
     assertRegexp,
-    'mutations is an object with boolean true'
+    'reducers is an object with boolean true'
   );
   t.throws(
-    () => node({ name: 'x', mutations: { a: false } }),
+    () => bundle({ name: 'x', reducers: { a: false } }),
     assertRegexp,
-    'mutations is an object with boolean false'
+    'reducers is an object with boolean false'
   );
   t.end();
 });
 
-test('Creating a node with invalid actions throws an error', t => {
+test('Creating a bundle with invalid actions throws an error', t => {
   t.throws(
-    () => node({ name: 'x', actions: 'foobar' }),
+    () => bundle({ name: 'x', actions: 'foobar' }),
     assertRegexp,
     'actions is a string'
   );
   t.throws(
-    () => node({ name: 'x', actions: 123 }),
+    () => bundle({ name: 'x', actions: 123 }),
     assertRegexp,
     'actions is a number'
   );
   t.throws(
-    () => node({ name: 'x', actions: [] }),
+    () => bundle({ name: 'x', actions: [] }),
     assertRegexp,
     'actions is an array'
   );
   t.throws(
-    () => node({ name: 'x', actions: () => null }),
+    () => bundle({ name: 'x', actions: () => null }),
     assertRegexp,
     'actions is a function'
   );
   t.throws(
-    () => node({ name: 'x', actions: true }),
+    () => bundle({ name: 'x', actions: true }),
     assertRegexp,
     'actions is boolean true'
   );
   t.throws(
-    () => node({ name: 'x', actions: false }),
+    () => bundle({ name: 'x', actions: false }),
     assertRegexp,
     'actions is boolean false'
   );
   t.throws(
-    () => node({ name: 'x', actions: { a: 'foo' } }),
+    () => bundle({ name: 'x', actions: { a: 'foo' } }),
     assertRegexp,
     'actions is an object with a string'
   );
   t.throws(
-    () => node({ name: 'x', actions: { a: 123 } }),
+    () => bundle({ name: 'x', actions: { a: 123 } }),
     assertRegexp,
     'actions is an object with a number'
   );
   t.throws(
-    () => node({ name: 'x', actions: { a: null } }),
+    () => bundle({ name: 'x', actions: { a: null } }),
     assertRegexp,
     'actions is an object with null'
   );
   t.throws(
-    () => node({ name: 'x', actions: { a: {} } }),
+    () => bundle({ name: 'x', actions: { a: {} } }),
     assertRegexp,
     'actions is an object with an object'
   );
   t.throws(
-    () => node({ name: 'x', actions: { a: [] } }),
+    () => bundle({ name: 'x', actions: { a: [] } }),
     assertRegexp,
     'actions is an object with an array'
   );
   t.throws(
-    () => node({ name: 'x', actions: { a: true } }),
+    () => bundle({ name: 'x', actions: { a: true } }),
     assertRegexp,
     'actions is an object with boolean true'
   );
   t.throws(
-    () => node({ name: 'x', actions: { a: false } }),
+    () => bundle({ name: 'x', actions: { a: false } }),
     assertRegexp,
     'actions is an object with boolean false'
   );
   t.end();
 });
 
-test('Creating a node with invalid children throws an error', t => {
+test('Creating a bundle with invalid children throws an error', t => {
   t.throws(
-    () => node({ name: 'x', children: 'foobar' }),
+    () => bundle({ name: 'x', children: 'foobar' }),
     assertRegexp,
     'children is a string'
   );
   t.throws(
-    () => node({ name: 'x', children: 123 }),
+    () => bundle({ name: 'x', children: 123 }),
     assertRegexp,
     'children is a number'
   );
   t.throws(
-    () => node({ name: 'x', children: () => null }),
+    () => bundle({ name: 'x', children: () => null }),
     assertRegexp,
     'children is a function'
   );
   t.throws(
-    () => node({ name: 'x', children: true }),
+    () => bundle({ name: 'x', children: true }),
     assertRegexp,
     'children is boolean true'
   );
   t.throws(
-    () => node({ name: 'x', children: false }),
+    () => bundle({ name: 'x', children: false }),
     assertRegexp,
     'children is boolean false'
   );
   t.throws(
-    () => node({ name: 'x', children: {} }),
+    () => bundle({ name: 'x', children: {} }),
     assertRegexp,
     'children is an object'
   );
   t.throws(
-    () => node({ name: 'x', children: ['child'] }),
+    () => bundle({ name: 'x', children: ['child'] }),
     assertRegexp,
     'children is an array with a string'
   );
   t.throws(
-    () => node({ name: 'x', children: [123] }),
+    () => bundle({ name: 'x', children: [123] }),
     assertRegexp,
     'children is an array with a number'
   );
   t.throws(
-    () => node({ name: 'x', children: [null] }),
+    () => bundle({ name: 'x', children: [null] }),
     assertRegexp,
     'children is an array with null'
   );
   t.throws(
-    () => node({ name: 'x', children: [{}] }),
+    () => bundle({ name: 'x', children: [{}] }),
     assertRegexp,
     'children is an array with an object'
   );
   t.throws(
-    () => node({ name: 'x', children: [[]] }),
+    () => bundle({ name: 'x', children: [[]] }),
     assertRegexp,
     'children is an array with an array'
   );
   t.throws(
-    () => node({ name: 'x', children: [true] }),
+    () => bundle({ name: 'x', children: [true] }),
     assertRegexp,
     'children is an array with boolean true'
   );
   t.throws(
-    () => node({ name: 'x', children: [false] }),
+    () => bundle({ name: 'x', children: [false] }),
     assertRegexp,
     'children is an array with boolean false'
   );
   t.throws(
-    () => node({ name: 'x', children: [() => null] }),
+    () => bundle({ name: 'x', children: [() => null] }),
     assertRegexp,
-    'children is an array with non-node function'
+    'children is an array with non-bundle function'
   );
   t.end();
 });

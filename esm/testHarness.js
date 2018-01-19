@@ -1,7 +1,7 @@
-import { clone, equals } from 'ramda';
+import { equals } from 'ramda';
 
-export default node => {
-  const expectedMutations = [];
+export default bundle => {
+  const expectedReducers = [];
   const errors = [];
 
   const validate = (targetName, expected, actual) => {
@@ -17,13 +17,13 @@ export default node => {
     }
   };
 
-  let state = node.reducer(undefined, { type: '@@INIT' });
+  let state = bundle.reducer(undefined, { type: '@@INIT' });
   const store = {
     getState() {
       return state;
     },
     dispatch(action) {
-      const expected = expectedMutations.shift() || {};
+      const expected = expectedReducers.shift() || {};
 
       if (expected.type != null) {
         validate('action type', expected.type, action.type.split('/')[1]);
@@ -32,7 +32,7 @@ export default node => {
         validate('payload', expected.payload, action.payload);
       }
 
-      state = node.reducer(state, action);
+      state = bundle.reducer(state, action);
 
       if (expected.state != null) {
         validate('final state', expected.state, state);
@@ -40,20 +40,20 @@ export default node => {
     }
   };
 
-  const actions = node.getActions(store);
+  const actions = bundle.getActions(store);
 
   return {
     actions,
-    willMutate(type, payload, state) {
-      expectedMutations.push({
+    expectAction(type, payload, state) {
+      expectedReducers.push({
         type,
         payload,
         state
       });
     },
-    mutate(type, payload) {
+    dispatch(type, payload) {
       store.dispatch({
-        type: node.createTypeName(type),
+        type: bundle.createTypeName(type),
         payload
       });
       return store.getState();

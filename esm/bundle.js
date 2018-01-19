@@ -4,7 +4,7 @@ import {
   assertString,
   assertDuplications,
   assertState,
-  assertMutations,
+  assertReducers,
   assertActions,
   assertChildren
 } from './assertions';
@@ -14,7 +14,7 @@ export default (declaration = {}) => {
     name = null,
     state = {},
     actions = {},
-    mutations = {},
+    reducers = {},
     children = [],
     reducer: customReducer
   } = declaration;
@@ -28,19 +28,19 @@ export default (declaration = {}) => {
     'state properties and child names'
   );
   assertState(state);
-  assertMutations(mutations);
+  assertReducers(reducers);
   assertActions(actions);
   assertChildren(children);
 
   // Setup variable mapping and functions.
-  // These will change if the node is attached to another node as a child.
-  let mappedMutations = null;
+  // These will change if the bundle is attached to another bundle as a child.
+  let bundleReducers = null;
   let selectState = null;
   let createTypeName = key => `${name}/${key}`;
 
   const updateTypeNames = newPrefix => {
     createTypeName = key => `${newPrefix ? newPrefix + '.' : ''}${name}/${key}`;
-    mappedMutations = mapObjKeys(createTypeName, mutations);
+    bundleReducers = mapObjKeys(createTypeName, reducers);
     selectState = newPrefix
       ? path(slice(1, Infinity, newPrefix.split('.').concat(name)))
       : identity;
@@ -48,7 +48,7 @@ export default (declaration = {}) => {
 
   updateTypeNames();
 
-  // Attach and update child nodes
+  // Attach and update child bundles
   children.forEach(child => child.setPrefix(name));
   const zipChildren = prop => zipObj(childNames, pluck(prop, children));
   const initialState = merge(state, zipChildren('state'));
@@ -56,17 +56,17 @@ export default (declaration = {}) => {
   const reducer = (prevState = initialState, action) => {
     const { type, payload } = action;
 
-    // Is setState action?
+    // Is it a setState action?
     if (type === createTypeName('setState')) {
       return merge(prevState, payload);
     }
 
-    // Is one of this nodes mutators?
-    const mutation = mappedMutations[type];
-    if (mutation) {
+    // Is it one of the bundle's reducers?
+    const reducer = bundleReducers[type];
+    if (reducer) {
       return merge(
         prevState,
-        typeof mutation === 'function' ? mutation(prevState, payload) : mutation
+        typeof reducer === 'function' ? reducer(prevState, payload) : reducer
       );
     }
 
@@ -84,8 +84,12 @@ export default (declaration = {}) => {
 
   const getActions = store => {
     const context = {
-      mutate(key, payload) {
-        store.dispatch({ type: createTypeName(key), payload });
+      dispatch(typeOrAction, payload) {
+        if (typeof typeOrAction === 'object') {
+          store.dispatch(typeOrAction);
+        } else {
+          store.dispatch({ type: createTypeName(typeOrAction), payload });
+        }
       },
       setState(newState) {
         store.dispatch({ type: createTypeName('setState'), payload: newState });

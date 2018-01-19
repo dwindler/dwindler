@@ -1,5 +1,5 @@
 const test = require('tape');
-const { node, composeDeclarations } = require('..');
+const { bundle, composeDeclarations } = require('..');
 
 test('Composing with names takes the right name', t => {
   const declA = { name: 'A' };
@@ -78,7 +78,7 @@ test('Composing custom reducers creates a new working reducer', t => {
     }
   };
 
-  const n = node(composeDeclarations({ name: 'test' }, declA, declB));
+  const n = bundle(composeDeclarations({ name: 'test' }, declA, declB));
 
   let state = n.reducer(n.state, { type: 'A' });
   t.equal(state.number, 1);
