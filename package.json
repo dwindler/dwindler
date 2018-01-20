@@ -1,7 +1,7 @@
 {
   "name": "dwindler",
   "description": "Simple and boilerplate free redux module factory",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "homepage": "https://github.com/ilkkahanninen/dwindler",
   "bugs": {
     "url": "https://github.com/ilkkahanninen/dwindler/issues"
