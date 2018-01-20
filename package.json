@@ -21,7 +21,6 @@
     "creator",
     "ducks"
   ],
-  "module": "esm/index.js",
   "main": "cjs/index.js",
   "files": [
     "esm",
