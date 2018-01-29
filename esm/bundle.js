@@ -58,16 +58,17 @@ const bundle = (declaration = {}, options = {}) => {
     }
 
     // Pass to the children...
+    let nextState = prevState;
     for (const childName of keys(childNodes)) {
       const child = childNodes[childName];
-      const childState = prevState[childName];
-      const nextState = child.reducer(childState, action);
-      if (nextState !== childState) {
-        return merge(prevState, { [childName]: nextState });
+      const prevChildState = prevState[childName];
+      const nextChildState = child.reducer(prevChildState, action);
+      if (nextChildState !== prevChildState) {
+        nextState = merge(nextState, { [childName]: nextChildState });
       }
     }
 
-    return customReducer ? customReducer(prevState, action) : prevState;
+    return customReducer ? customReducer(nextState, action) : nextState;
   };
 
   const getActions = store => {

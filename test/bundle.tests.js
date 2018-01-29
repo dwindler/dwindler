@@ -39,9 +39,16 @@ test('Creates a bundle tree with correctly assigned state', t => {
       }
     };
 
+    const child2 = {
+      state: {
+        step: 'child2'
+      }
+    };
+
     const root = bundle({
       children: {
-        child
+        child,
+        child2
       },
       state: {
         step: 'root'
@@ -57,6 +64,9 @@ test('Creates a bundle tree with correctly assigned state', t => {
           grandchild: {
             step: 'grandchild'
           }
+        },
+        child2: {
+          step: 'child2'
         }
       },
       'has correctly build state tree'
