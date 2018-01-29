@@ -5,50 +5,17 @@ const { merge } = require('ramda');
 
 const assertRegexp = /Dwindler assertion/;
 
-test('Accept declaration with only name', t => {
-  t.doesNotThrow(() => bundle({ name: 'test' }), 'name is string');
-  t.doesNotThrow(() => bundle({ name: 12345 }), 'name is number');
-  t.doesNotThrow(() => bundle({ name: 0 }), 'name is zero');
-  t.end();
-});
-
-test('Throw error if declaration has no name or it is invalid', t => {
-  t.throws(() => bundle({}), assertRegexp, 'no name');
-  t.throws(() => bundle({ name: null }), assertRegexp, 'name is null');
-  t.throws(() => bundle({ name: '' }), assertRegexp, 'name is an empty string');
-  t.throws(() => bundle({ name: {} }), assertRegexp, 'name is an object');
-  t.throws(() => bundle({ name: [] }), assertRegexp, 'name is an array');
-  t.throws(
-    () => bundle({ name: () => 'foo' }),
-    assertRegexp,
-    'name is function'
-  );
-  t.throws(
-    () => bundle({ name: false }),
-    assertRegexp,
-    'name is boolean false'
-  );
-  t.throws(() => bundle({ name: true }), assertRegexp, 'name is boolean true');
-  t.end();
-});
-
 test('Creates a single bundle with correct properties', t => {
   try {
-    const initialState = {
+    const state = {
       str: 'foobar',
       value: 10
     };
 
-    const root = bundle({
-      name: 'root',
-      state: initialState
-    });
+    const root = bundle({ state });
 
-    t.equal(root.name, 'root', 'correct name');
-    t.deepEqual(root.state, initialState, 'correct initial state');
     t.equal(typeof root.reducer, 'function', 'has reducer function');
     t.equal(typeof root.getActions, 'function', 'has getActions function');
-    t.equal(typeof root.setPrefix, 'function', 'has setPrefix function');
     t.end();
   } catch (err) {
     t.fail('Failed with error: ' + err.message);
@@ -57,24 +24,25 @@ test('Creates a single bundle with correct properties', t => {
 
 test('Creates a bundle tree with correctly assigned state', t => {
   try {
-    const grandchild = bundle({
-      name: 'grandchild',
+    const grandchild = {
       state: {
         step: 'grandchild'
       }
-    });
+    };
 
-    const child = bundle({
-      name: 'child',
-      children: [grandchild],
+    const child = {
+      children: {
+        grandchild
+      },
       state: {
         step: 'child'
       }
-    });
+    };
 
     const root = bundle({
-      name: 'root',
-      children: [child],
+      children: {
+        child
+      },
       state: {
         step: 'root'
       }
@@ -102,7 +70,6 @@ test('Creates a bundle tree with correctly assigned state', t => {
 test('Creates a single bundle with working action creators', t => {
   try {
     const root = bundle({
-      name: 'root',
       state: {
         a: false,
         b: false,
@@ -167,8 +134,7 @@ test('Creates a single bundle with working action creators', t => {
 
 test('Creates a bundle tree with correctly assigned action creators', t => {
   try {
-    const grandchild = bundle({
-      name: 'grandchild',
+    const grandchild = {
       state: {
         step: 'grandchild'
       },
@@ -177,11 +143,10 @@ test('Creates a bundle tree with correctly assigned action creators', t => {
           this.setState({ step });
         }
       }
-    });
+    };
 
-    const child = bundle({
-      name: 'child',
-      children: [grandchild],
+    const child = {
+      children: { grandchild },
       state: {
         step: 'child'
       },
@@ -190,11 +155,10 @@ test('Creates a bundle tree with correctly assigned action creators', t => {
           this.setState({ step });
         }
       }
-    });
+    };
 
     const root = bundle({
-      name: 'root',
-      children: [child],
+      children: { child },
       state: {
         step: 'root'
       },
@@ -243,12 +207,12 @@ test('Creates a bundle tree with correctly assigned action creators', t => {
 
 test('Creating a bundle tree with conflicting child and state names throws an error', t => {
   try {
-    const value = bundle({ name: 'value' });
     t.throws(
       () =>
         bundle({
-          name: 'root',
-          children: [value],
+          children: {
+            value: {}
+          },
           state: {
             value: 0
           }
@@ -455,49 +419,34 @@ test('Creating a bundle with invalid children throws an error', t => {
     'children is boolean false'
   );
   t.throws(
-    () => bundle({ name: 'x', children: {} }),
+    () => bundle({ name: 'x', children: [] }),
     assertRegexp,
-    'children is an object'
+    'children is an array'
   );
   t.throws(
-    () => bundle({ name: 'x', children: ['child'] }),
+    () => bundle({ name: 'x', children: { child: 'child' } }),
     assertRegexp,
-    'children is an array with a string'
+    'children is an object containing a string'
   );
   t.throws(
     () => bundle({ name: 'x', children: [123] }),
     assertRegexp,
-    'children is an array with a number'
+    'children is an object containing a number'
   );
   t.throws(
-    () => bundle({ name: 'x', children: [null] }),
+    () => bundle({ name: 'x', children: { child: [] } }),
     assertRegexp,
-    'children is an array with null'
+    'children is an object containing an array'
   );
   t.throws(
-    () => bundle({ name: 'x', children: [{}] }),
+    () => bundle({ name: 'x', children: { child: true } }),
     assertRegexp,
-    'children is an array with an object'
+    'children is an object containing a boolean true'
   );
   t.throws(
-    () => bundle({ name: 'x', children: [[]] }),
+    () => bundle({ name: 'x', children: { child: () => null } }),
     assertRegexp,
-    'children is an array with an array'
-  );
-  t.throws(
-    () => bundle({ name: 'x', children: [true] }),
-    assertRegexp,
-    'children is an array with boolean true'
-  );
-  t.throws(
-    () => bundle({ name: 'x', children: [false] }),
-    assertRegexp,
-    'children is an array with boolean false'
-  );
-  t.throws(
-    () => bundle({ name: 'x', children: [() => null] }),
-    assertRegexp,
-    'children is an array with non-bundle function'
+    'children is an object containing a function'
   );
   t.end();
 });

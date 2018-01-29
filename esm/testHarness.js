@@ -1,6 +1,8 @@
 import { equals } from 'ramda';
+import createBundle from './bundle';
 
-export default bundle => {
+export default declaration => {
+  const bundle = createBundle(declaration);
   const expectedReducers = [];
   const errors = [];
 
@@ -26,7 +28,11 @@ export default bundle => {
       const expected = expectedReducers.shift() || {};
 
       if (expected.type != null) {
-        validate('action type', expected.type, action.type.split('/')[1]);
+        validate(
+          'action type',
+          expected.type,
+          action.type.split('/')[1] || action.type
+        );
       }
       if (expected.payload != null) {
         validate('payload', expected.payload, action.payload);

@@ -1,9 +1,8 @@
 const test = require('tape');
-const { bundle, testHarness } = require('..');
+const { testHarness } = require('..');
 
 test('Correctly implemented action creator does not generate errors', t => {
-  const user = bundle({
-    name: 'user',
+  const user = {
     state: {
       isLoading: false,
       name: null
@@ -18,7 +17,7 @@ test('Correctly implemented action creator does not generate errors', t => {
       start: { isLoading: true },
       success: (state, name) => ({ isLoading: false, name })
     }
-  });
+  };
 
   const userTest = testHarness(user);
   userTest.expectAction('start', null, { isLoading: true, name: null });
@@ -29,8 +28,7 @@ test('Correctly implemented action creator does not generate errors', t => {
 });
 
 test('Incorrectly implemented action creator generates errors', t => {
-  const user = bundle({
-    name: 'user',
+  const user = {
     state: {
       isLoading: false,
       name: null
@@ -45,7 +43,7 @@ test('Incorrectly implemented action creator generates errors', t => {
       start: { isLoading: true },
       success: (state, name) => ({ name })
     }
-  });
+  };
 
   const userTest = testHarness(user);
   userTest.expectAction('start', null, { isLoading: true, name: null });
@@ -56,8 +54,7 @@ test('Incorrectly implemented action creator generates errors', t => {
 });
 
 test('Action creator using getState() does not generate errors', t => {
-  const counter = bundle({
-    name: 'counter',
+  const counter = {
     state: {
       value: 1
     },
@@ -66,7 +63,7 @@ test('Action creator using getState() does not generate errors', t => {
         this.setState({ value: this.getState().value + 1 });
       }
     }
-  });
+  };
 
   const counterTest = testHarness(counter);
   counterTest.expectAction('setState', { value: 2 }, { value: 2 });
@@ -76,15 +73,13 @@ test('Action creator using getState() does not generate errors', t => {
 });
 
 test('Action creator using getAppState() does not generate errors', t => {
-  const left = bundle({
-    name: 'left',
+  const left = {
     state: {
       value: 'left'
     }
-  });
+  };
 
-  const right = bundle({
-    name: 'right',
+  const right = {
     state: {
       value: null
     },
@@ -93,12 +88,11 @@ test('Action creator using getAppState() does not generate errors', t => {
         this.setState({ value: this.getAppState().left.value });
       }
     }
-  });
+  };
 
-  const root = bundle({
-    name: 'root',
-    children: [left, right]
-  });
+  const root = {
+    children: { left, right }
+  };
 
   const rootTest = testHarness(root);
   rootTest.expectAction(
@@ -115,8 +109,7 @@ test('Action creator using getAppState() does not generate errors', t => {
 });
 
 test('Reducers can be tested correctly', t => {
-  const calc = bundle({
-    name: 'calc',
+  const calc = {
     state: {
       value: 0
     },
@@ -124,7 +117,7 @@ test('Reducers can be tested correctly', t => {
       add: (state, n) => ({ value: state.value + n }),
       multiply: (state, n) => ({ value: state.value * n })
     }
-  });
+  };
 
   const calcTest = testHarness(calc);
   t.deepEqual(calcTest.dispatch('add', 5), { value: 5 }, 'add works');

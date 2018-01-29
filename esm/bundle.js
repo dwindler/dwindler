@@ -1,59 +1,46 @@
-import { identity, keys, map, merge, path, pluck, slice, zipObj } from 'ramda';
 import {
-  mapObjKeys,
-  assertString,
-  assertDuplications,
-  assertState,
-  assertReducers,
-  assertActions,
-  assertChildren
-} from './assertions';
+  identity,
+  keys,
+  map,
+  mapObjIndexed,
+  merge,
+  path,
+  slice,
+  values,
+  zipObj
+} from 'ramda';
 
-export default (declaration = {}) => {
+import { assertDeclaration } from './assertions';
+
+const mapObjKeys = (func, obj) => zipObj(map(func, keys(obj)), values(obj));
+
+const bundle = (declaration = {}, options = {}) => {
   const {
-    name = null,
     state = {},
     actions = {},
     reducers = {},
-    children = [],
+    children = {},
     reducer: customReducer
   } = declaration;
+  const { name } = options;
 
-  // Check input validity
-  assertString(name, 'name');
-  const childNames = pluck('name', children);
-  assertDuplications(
-    keys(state),
-    childNames,
-    'state properties and child names'
-  );
-  assertState(state);
-  assertReducers(reducers);
-  assertActions(actions);
-  assertChildren(children);
+  assertDeclaration(declaration);
 
   // Setup variable mapping and functions.
   // These will change if the bundle is attached to another bundle as a child.
-  let bundleReducers = null;
-  let selectState = null;
-  let createTypeName = key => `${name}/${key}`;
-
-  const updateTypeNames = newPrefix => {
-    createTypeName = key => `${newPrefix ? newPrefix + '.' : ''}${name}/${key}`;
-    bundleReducers = mapObjKeys(createTypeName, reducers);
-    selectState = newPrefix
-      ? path(slice(1, Infinity, newPrefix.split('.').concat(name)))
-      : identity;
-  };
-
-  updateTypeNames();
+  const createTypeName = key => (name ? `${name}/${key}` : key);
+  const selectState = name
+    ? path(slice(1, Infinity, name.split('.').concat(name)))
+    : identity;
+  const bundledReducers = mapObjKeys(createTypeName, reducers);
 
   // Attach and update child bundles
-  children.forEach(child => child.setPrefix(name));
-  const zipChildren = prop => zipObj(childNames, pluck(prop, children));
-  const initialState = merge(state, zipChildren('state'));
+  const childNodes = mapObjIndexed(
+    (child, name) => bundle(child, { name }),
+    children
+  );
 
-  const reducer = (prevState = initialState, action) => {
+  const reducer = (prevState = state, action) => {
     const { type, payload } = action;
 
     // Is it a setState action?
@@ -62,7 +49,7 @@ export default (declaration = {}) => {
     }
 
     // Is it one of the bundle's reducers?
-    const reducer = bundleReducers[type];
+    const reducer = bundledReducers[type];
     if (reducer) {
       return merge(
         prevState,
@@ -71,11 +58,12 @@ export default (declaration = {}) => {
     }
 
     // Pass to the children...
-    for (const child of children) {
-      const childState = prevState[child.name];
+    for (const childName of keys(childNodes)) {
+      const child = childNodes[childName];
+      const childState = prevState[childName];
       const nextState = child.reducer(childState, action);
       if (nextState !== childState) {
-        return merge(prevState, { [child.name]: nextState });
+        return merge(prevState, { [childName]: nextState });
       }
     }
 
@@ -85,10 +73,10 @@ export default (declaration = {}) => {
   const getActions = store => {
     const context = {
       dispatch(typeOrAction, payload) {
-        if (typeof typeOrAction === 'object') {
-          store.dispatch(typeOrAction);
-        } else {
+        if (typeof typeOrAction === 'string') {
           store.dispatch({ type: createTypeName(typeOrAction), payload });
+        } else {
+          store.dispatch(typeOrAction);
         }
       },
       setState(newState) {
@@ -98,19 +86,15 @@ export default (declaration = {}) => {
       getAppState: () => store.getState()
     };
     const myActions = map(func => func.bind(context), actions);
-    const childActions = zipObj(
-      childNames,
-      map(child => child.getActions(store), children)
-    );
+    const childActions = map(child => child.getActions(store), childNodes);
     return merge(myActions, childActions);
   };
 
   return {
-    name,
-    state,
     reducer,
     getActions,
-    setPrefix: updateTypeNames,
     createTypeName
   };
 };
+
+export default bundle;
