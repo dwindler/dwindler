@@ -25,10 +25,6 @@ This example is a simple **bundle** using `setState(state)` to init changes to t
 import { bundle } from 'dwindler';
 
 const hello = bundle({
-  // Name is a required property. It identifies this bundle and
-  // is needed to create the type names.
-  name: 'hello',
-
   // Initial state
   state: {
     text: null
@@ -63,7 +59,7 @@ In this example calling `salute()` dispatches the following action under the hoo
 
 ```json
 {
-  "type": "hello/setState",
+  "type": "setState",
   "payload": {
     "text": "Hello, world!"
   }
@@ -87,7 +83,6 @@ Dwindler composes the reducer function from these functions (and the built-in se
 ```javascript
 // user.js
 const user = bundle({
-  name: 'user',
   state: {
     name: null,
     email: null
@@ -117,7 +112,7 @@ Calling `setName('John Doe')` dispatches the following action:
 
 ```json
 {
-  "type": "user/nameChanged",
+  "type": "nameChanged",
   "payload": "John Doe"
 }
 ```
@@ -128,8 +123,7 @@ Next we want to compose the bundles we created and create a tree. It can be done
 
 ```javascript
 const app = bundle({
-  name: 'app',
-  children: [user, hello]
+  children: { user, hello }
 });
 
 const store = createStore(hello.reducer);
@@ -167,8 +161,6 @@ You can add standard Redux style reducer to the declation. It will catch all act
 
 ```javascript
 const auth = bundle({
-  name: 'auth',
-
   state: {
     token: null
   },
@@ -208,7 +200,6 @@ const nameable = {
 const user = bundle(composeDeclarations(
   nameable,
   {
-    name: 'user',
     state: {
       id: null,
     }
@@ -251,9 +242,7 @@ export default connect(
 This example includes inter-bundle communication and asynchronous multiphase action creator.
 
 ```javascript
-const auth = bundle({
-  name: 'auth',
-
+const auth = {
   state: {
     token: null
   },
@@ -274,11 +263,9 @@ const auth = bundle({
     }),
     logout: { token: null }
   }
-});
+};
 
-const users = bundle({
-  name: 'users',
-
+const users = {
   state: {
     list: [],
     isLoading: false,
@@ -320,11 +307,13 @@ const users = bundle({
       isLoading: false
     })
   }
-});
+};
 
 const app = bundle({
-  name: 'app',
-  children: [auth, users]
+  children: {
+    auth,
+    users
+  }
 });
 ```
 
