@@ -1,8 +1,8 @@
 import { equals } from 'ramda';
 import createBundle from './bundle';
 
-export default declaration => {
-  const bundle = createBundle(declaration);
+export default (declaration, options = {}) => {
+  const bundle = createBundle(declaration, options);
   const expectedReducers = [];
   const errors = [];
 

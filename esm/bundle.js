@@ -22,7 +22,7 @@ const bundle = (declaration = {}, options = {}) => {
     children = {},
     reducer: customReducer
   } = declaration;
-  const { name } = options;
+  const { name, services = {} } = options;
 
   assertDeclaration(declaration);
 
@@ -36,7 +36,7 @@ const bundle = (declaration = {}, options = {}) => {
 
   // Attach and update child bundles
   const childNodes = mapObjIndexed(
-    (child, name) => bundle(child, { name }),
+    (child, name) => bundle(child, { name, services }),
     children
   );
 
@@ -84,7 +84,8 @@ const bundle = (declaration = {}, options = {}) => {
         store.dispatch({ type: createTypeName('setState'), payload: newState });
       },
       getState: () => selectState(store.getState()),
-      getAppState: () => store.getState()
+      getAppState: () => store.getState(),
+      services
     };
     const myActions = map(func => func.bind(context), actions);
     const childActions = map(child => child.getActions(store), childNodes);

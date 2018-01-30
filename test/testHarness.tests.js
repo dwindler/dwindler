@@ -128,3 +128,37 @@ test('Reducers can be tested correctly', t => {
   );
   t.end();
 });
+
+test('Action creators can access services via testHarness', t => {
+  const child = {
+    actions: {
+      test() {
+        this.services.test('child');
+      }
+    }
+  };
+
+  const parent = {
+    children: { child },
+    actions: {
+      test() {
+        this.services.test('root');
+      }
+    }
+  };
+
+  const expectedArgs = ['root', 'child'];
+
+  t.plan(expectedArgs.length);
+  const services = {
+    test(arg) {
+      const expected = expectedArgs.shift();
+      t.equal(arg, expected);
+    }
+  };
+
+  const parentTest = testHarness(parent, { services });
+
+  parentTest.actions.test();
+  parentTest.actions.child.test();
+});

@@ -460,3 +460,40 @@ test('Creating a bundle with invalid children throws an error', t => {
   );
   t.end();
 });
+
+test('Action creators can access services', t => {
+  const child = {
+    actions: {
+      test() {
+        this.services.test('child');
+      }
+    }
+  };
+
+  const parent = {
+    children: { child },
+    actions: {
+      test() {
+        this.services.test('root');
+      }
+    }
+  };
+
+  const expectedArgs = ['root', 'child'];
+
+  t.plan(expectedArgs.length);
+  const services = {
+    test(arg) {
+      const expected = expectedArgs.shift();
+      t.equal(arg, expected);
+    }
+  };
+
+  const root = bundle(parent, { services });
+
+  const store = createStore(root.reducer);
+  const actions = root.getActions(store);
+
+  actions.test();
+  actions.child.test();
+});
