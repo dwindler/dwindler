@@ -6,6 +6,10 @@ Dwindler is a simple and boilerplate free [Redux](https://redux.js.org) module b
 
 `npm install dwindler redux --save`
 
+or
+
+`yarn add dwindler redux`
+
 ## Motivation
 
 Redux is great and makes your software robust but using it is a little too cumbersome and enterprisey. Dwindler easies the pain by defining type names automatically and simplifying the reducer composition.
@@ -18,162 +22,244 @@ Dwindler does not take care of immutability either. I recommend to use [seamless
 
 ## Usage
 
-This example is a simple **bundle** using `setState(state)` to init changes to the state. **Notice:** Because context (*this*) cannot be bound to arrow functions, action creators need to be normal functions. The ES6 shorthand form for object methods is used in these examples.
+Conceptually store is a tree structure in Dwindler. Each node is a module which contains its own properties holding the application state, action creators and reducers. You create your tree by implementing its nodes (both leaves and branches) as follows:
 
 ```javascript
-// hello.js
-import { bundle } from 'dwindler';
-
-const hello = bundle({
+const counter = {
   // Initial state
   state: {
-    text: null
+    value: 0
   },
 
   // Action creators
   actions: {
-    salute(target) {
-      this.setState({ text: `Hello, ${target}!` });
-    }
-  }
-});
-```
-
-### Creating a store
-
-The bundle itself doesn't take care of storing the state or sending events when the state changes. To make it useful we need to create a Redux store first.
-
-```javascript
-// store.js
-import { createStore } from 'redux';
-import hello from './hello';
-
-const store = createStore(hello.reducer);
-const actions = app.getActions(store);
-
-actions.hello.salute('world');
-store.getState(); // { text: 'Hello, world!' }
-```
-
-In this example calling `salute()` dispatches the following action under the hood:
-
-```json
-{
-  "type": "setState",
-  "payload": {
-    "text": "Hello, world!"
-  }
-}
-```
-
-### Reducers
-
-`this.setState()` is probably enough if your bundle is minimalistic enough but when the complexity of the bundle grows it would be nice to distinguish state changes from each other. You can do that by dispatching actions.
-
-Actions are dispatched with `this.dispatch(type, payload)`. The type is mapped automatically to match the bundle's type signature. All data is put into `payload` property to keep action structure uniform.
-
-If you need to dispatch an action with exact type call `this.dispatch({ type: 'MY_ACTION' })`. This is useful for example if you want to handle API calls in middleware.
-
-The actual change to the state is defined in `reducers` object which contains corresponding **state patches** and/or reducer functions.
-
-State patch is an object which is merged to the current state. It is useful for static changes. For other cases you need to use a function. The function signature is `(oldState, payload) => newState`.
-
-Dwindler composes the reducer function from these functions (and the built-in setState reducer). `this.setState(state)` is actually a shorthand for `this.dispatch('setState', state)`.
-
-```javascript
-// user.js
-const user = bundle({
-  state: {
-    name: null,
-    email: null
-  },
-  actions: {
+    increase(amount = 1) {
+      this.dispatch('increaseValue', amount);
+    },
     reset() {
-      this.dispatch('reset');
-    },
-    setName(name) {
-      this.dispatch('nameChanged', name);
-    },
-    setEmail(email) {
-      this.dispatch('emailChanged', email);
+      this.setState({ value: 0 });
     }
   },
+
+  // Reducers
   reducers: {
-    // State patch shorthand:
-    reset: { name: null, email: null },
-    // Function reducers:
-    nameChanged: (state, name) => { ...state, name },
-    emailChanged: (state, email) => { ...state, email }
+    increaseValue: (state, amount) => ({
+      value: state.value + amount
+    })
   }
-});
-```
-
-Calling `setName('John Doe')` dispatches the following action:
-
-```json
-{
-  "type": "nameChanged",
-  "payload": "John Doe"
 }
 ```
 
-### Composition
+Above we declared a node named `counter`. It has simple state with one property, one action creator to increase its value and a reducer to do the actual work.
 
-Next we want to compose the bundles we created and create a tree. It can be done simply by creating a bundle with a **children** property. The following bundle will be our root bundle.
+This should be familiar if you are familiar with Redux and ducks. If you are not I recommend to read [the tutorial](https://redux.js.org/docs/basics/).
+
+There are few differences compared to traditional Redux patterns:
+
+* State is always an object.
+  * This limitation is due to automatic type name generation.
+  * As types are automatically generated you don't have to care that the action types are unique among all the reducers.
+* Action creators do not return actions. The always call `this.dispatch()`.
+  * Action creators are similiar to thunks but instead of receiving `dispatch` and `getState` as arguments they have those functions bound to `this`.
+  * You may find this (pun intended) ugly among all the functional programming enthusiasm but this is considered option to make the code easier to write and reason.
+  * Don't worry, there exists a way to easily unit test your action creators.
+* `this.dispatch()` takes two arguments: `type` and `payload`.
+  * This makes sure that the actions have correct shape and it is also part of the automatic type name mapping.
+  * You can still dispatch standard Redux action by dispatching an action object, e.g. `dispatch({ type: 'MY_OWN_ACTION' })`
+
+Let's assumme the `counter` we declared above isn't alone and we have created also few other nodes (in this case `user` and `posts`). Let's wrap them together to a root node:
 
 ```javascript
-const app = bundle({
-  children: { user, hello }
-});
+const root = {
+  children: {
+    counter,
+    user,
+    posts
+  }
+};
+```
 
-const store = createStore(hello.reducer);
+This `root` could also have state, action creators and reducers but now it is going to be a simple wrapper. `children` property defines all child nodes and those nodes could potentially have their own child nodes. This forms a tree structure. There is no limit for the depth of the tree other than usability.
+
+Now we are ready to create our Redux store:
+
+```javascript
+import { bundle } from 'dwindler';
+import { createStore } from 'redux';
+import root from './root';
+
+const app = bundle(root);
+const store = createStore(app.reducer);
 const actions = app.getActions(store);
-
-actions.user.setName('Jane Doe');
-actions.hello.salute('Jane');
 ```
 
-As you can see the actions object is structured the same way as the bundle composition. This also affects to the form of state. Calling `store.getState()` would return following state:
+`bundle()` takes the root node and composes a reducer function and maps type names. It returns an object which contains two functions:
+
+* `reducer()` is the composed reducer function for `createStore`.
+* `getActions()` binds store to action creators and returns a tree of bound action creators.
+
+Now we can test our brand new store:
+
+```javascript
+// Call counter's action creator
+actions.counter.increase();
+
+// Get state and print counter's value to the console
+const state = store.getState();
+console.log(state.counter.value); // 1
+```
+
+As you can see the `state` and `actions` both follow the tree structure and naming. If you have some devtools installed they would have noticed the following action being dispatched:
 
 ```json
 {
-  "hello": {
-    "text": "Hello, Jane!"
-  },
-  "user": {
-    "user": "Jane Doe",
-    "email": null
-  }
+  "type": "counter/increaseValue",
+  "payload": 1
 }
 ```
 
-You can compose as deep trees as you need.
+Format for type names is `path.to.node/dispatchType`.
 
-### Getting the current state
+### External data sources
 
-To create a conditional dispatch in an action creator you need to access the state. This can be done by calling `this.getState()` and it returns the bundle's state.
+No application is an island and you most probably need to fetch data from API or other external service. Dwindler provides a standard way to inject these dependencies as services to action creators. This is a recommended way because if you need to mock your API calls for unit tests you can simply provide a mock version instead of a real thing.
 
-If you need to access the state of another bundle you can use `this.getAppState()` which returns the whole state tree.
+Provide your services in the second argument for `bundle(root, options)` with property `services`. Inside action creators you can access the services in `this.services`.
 
-### Custom reducers
-
-You can add standard Redux style reducer to the declation. It will catch all actions which are not handled by handlers in `reducers`. If you need to react to actions dispatched by other bundles you have to use this.
+As an example let's use something [Axios](https://github.com/axios/axios) as a simple REST API service:
 
 ```javascript
-const auth = bundle({
+import { bundle } from 'dwindler';
+import axios from 'axios';
+import root from './root';
+
+axios.defaults.baseURL = 'https://jsonplaceholder.typicode.com';
+
+const services = {
+  backend: axios
+};
+
+const app = bundle(root, { services });
+```
+
+Now we can have something like this somewhere in our action creators:
+
+```javascript
+const posts = {
   state: {
-    token: null
+    posts: []
   },
 
-  reducer(state, action) {
-    switch (action.type) {
-      case '@@INIT':
-        return { ...state, token: 'foobar' };
-      default:
-        return state;
+  actions: {
+    async getPosts() {
+      const posts = await this.services.backend.get('/posts');
+      this.dispatch('receivedPosts', posts);
     }
+  },
+
+  reducers: {
+    receivedPosts: (state, posts) => ({ posts })
   }
-})
+};
+```
+
+### Using with React
+
+Dwindler takes away the need to bind action creators to store in `connect()`. You can connect the actions in *mapStateToProps* argument.
+
+It is still the best practise to bring the action creators in as props as it makes unit testing the component easy. **Do not** call the action creators directly from your component (e.g. `onClick={actions.logout}`).
+
+```javascript
+import React from 'react';
+import { connect } from 'react-redux';
+import { actions } from './store';
+
+export const UserBadge = ({ username, logout }) => (
+  <div className="UserBadge">
+    {username}
+    <button onClick={logout}>
+      Logout
+    </button>
+  </div>
+);
+
+export default connect(
+  state => ({
+    // State
+    username: state.user.username,
+    // Actions
+    logout: actions.user.logout,
+  })
+)(UserBadge);
+```
+
+### Unit testing
+
+Dwindler provides `testHarness(description, options)` function to test your bundles easily. It returns an object which contains bound versions of action creators and following methods:
+
+- `expectAction(type, payload, finalState)` defines an expected action from the action creator. If an argument is undefined/null it will not be tested so you can test actions only partially.
+- `dispatch(type, payload)` dispatches an action and returns the new state.
+- `getErrors()` returns an array of error strings from the validation. If there is no errors this array is empty.
+- `hasErrors()` returns true if there is one or more errors.
+- `actions` contains all bundle's action creators.
+
+This example unit test uses [Tape](https://github.com/substack/tape) but you
+should be able to use `testHarness()` with any JS testing framework.
+
+```javascript
+const test = require('tape');
+const { bundle, testHarness } = require('dwindler');
+const user = require('./user');
+
+test('Updating user bundle state works', t => {
+  const mockUserData = {
+    name: 'mary',
+    email: 'mary@email.com'
+  };
+
+  const getUserAPIMock = {
+    api: {
+      get() {
+        return mockUserData;
+      }
+    }
+  };
+
+  // Create harness with mocked API which returns an user
+  const userTest = testHarness(user, { services: getUserAPIMock });
+
+  // Expected actions
+  userTest.expectAction(
+    'getUserStarted', // Expected action type
+    null,             // null -> Don't care about payload
+    {                 // Expected state after reducer
+      isLoading: true,
+      name: null,
+      email: null
+    }
+  );
+  userTest.expectAction(
+    'getUserSuccessful',  // Expected action type
+    mockUserData,         // Expected payload
+    {                     // Expected state after reducer
+      isLoading: false,
+      ...mockUserData
+    }
+  );
+
+  // Run action creators
+  userTest.actions.getUser(123);
+  t.equal(userTest.getErrors(), []); // We should not have errors
+
+  // Test nameChanged mutation independently
+  t.deepEqual(
+    userTest.dispatch('nameChanged', 'John'),   // Dispatch action
+    { name: 'John', email: 'mary@email.com' },  // Expected state after
+    'reducers.nameChanged works'
+  );
+
+  t.end();
+});
 ```
 
 ### Composing declarations
@@ -207,189 +293,25 @@ const user = bundle(composeDeclarations(
 ))
 ```
 
-### Using with React
+### Classic redux reducers
 
-Dwindler takes away the need to bind action creators to store in `connect()`. You can connect the actions in *mapStateToProps* argument.
-
-It is still the best practise to bring the action creators in as props as it makes unit testing the component easy. **Do not** call the action creators directly from your component (e.g. `onClick={actions.logout}`).
+You can add standard Redux style reducer to the declation. This is the only way to catch actions dispatched from other nodes, middlewares or possible other sources.
 
 ```javascript
-import React from 'react';
-import { connect } from 'react-redux';
-import { actions } from './store';
-
-export const UserBadge = ({ username, logout }) => (
-  <div className="UserBadge">
-    {username}
-    <button onClick={logout}>
-      Logout
-    </button>
-  </div>
-);
-
-export default connect(
-  state => ({
-    // State
-    username: state.user.username,
-    // Actions
-    logout: actions.user.logout,
-  })
-)(UserBadge);
-```
-
-### Longer example
-
-This example includes inter-bundle communication and asynchronous multiphase action creator.
-
-```javascript
-const auth = {
-  state: {
-    token: null
-  },
-
-  actions: {
-    login(user, password) {
-      this.dispatch('login', { user, password });
-    },
-    logout() {
-      this.dispatch('logout');
-    }
-  },
-
-  reducers: {
-    login: (state, token) => ({
-      ...state,
-      token: 'Basic ' + btoa(user + ':' + password))
-    }),
-    logout: { token: null }
-  }
+const initialState = {
+  name: null
 };
 
-const users = {
-  state: {
-    list: [],
-    isLoading: false,
-    error: null
-  },
+const user = bundle({
+  state: initialState,
 
-  actions: {
-    async getUsers() {
-      // Prevent user to fetch user list if there is request already ongoing.
-      // getState() returns this bundle's state.
-      if (this.getState().isLoading) {
-        return;
-      }
-
-      // Get whole application state. We need this to read the token from the
-      // auth bundle.
-      const appState = this.getAppState();
-
-      try {
-        this.dispatch('started');
-        const users = await api.get('users', appState.auth.token);
-        this.dispatch('successful', users);
-      } catch (err) {
-        this.dispatch('failed', err.message);
-      }
+  reducer(state, action) {
+    switch (action.type) {
+      case 'auth/logout':
+        return initialState;
+      default:
+        return state;
     }
-  },
-
-  reducers: {
-    started: { isLoading: true },
-    successful: (state, users) => ({
-      ...state,
-      list: users,
-      isLoading: false
-    }),
-    failed: (state, errorMessage) => ({
-      ...state,
-      error: errorMessage,
-      isLoading: false
-    })
   }
-};
-
-const app = bundle({
-  children: {
-    auth,
-    users
-  }
-});
+})
 ```
-
-## Writing tests
-
-Dwindler provides `testHarness(bundle)` function to test your bundles easily. It returns an object which contains bound versions of action creators and following methods:
-
-- `expectAction(type, payload, finalState)` defines an expected action from the action creator. If an argument is undefined/null it will not be tested so you can test actions only partially.
-- `dispatch(type, payload)` dispatches an action and returns the new state.
-- `getErrors()` returns an array of error strings from the validation. If there is no errors this array is empty.
-- `hasErrors()` returns true if there is one or more errors.
-- `actions` contains all bundle's action creators.
-
-This example unit test uses [Tape](https://github.com/substack/tape) but you
-should be able to use `testHarness()` with any JS testing framework.
-
-```javascript
-const test = require('tape');
-const { bundle, testHarness } = require('dwindler');
-const user = require('./user');
-
-test('Updating user bundle state works', t => {
-  const userTest = testHarness(user);
-
-  // Expected actions
-  userTest.expectAction(
-    'nameChanged',  // Expected action type
-    'Mary',         // Expected payload
-    {               // Expected state after reducer
-      name: 'Mary',
-      email: null
-    }
-  );
-  userTest.expectAction(
-    'emailChanged',
-    'mary@email.com',
-    {
-      name: 'Mary',
-      email: 'mary@email.com'
-    }
-  );
-
-  // Run action creators
-  userTest.actions.setName('Mary');
-  userTest.actions.setEmail('mary@email.com');
-  t.equal(userTest.getErrors(), []); // We should not have errors
-
-  // Test nameChanged mutation independently
-  t.deepEqual(
-    userTest.dispatch('nameChanged', 'John'),   // Dispatch action
-    { name: 'John', email: 'mary@email.com' },  // Expected state after
-    'reducers.nameChanged works'
-  );
-
-  t.end();
-});
-```
-
-## MIT License
-
-Copyright 2018 Ilkka Hänninen
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
