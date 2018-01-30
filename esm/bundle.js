@@ -5,7 +5,6 @@ import {
   mapObjIndexed,
   merge,
   path,
-  slice,
   values,
   zipObj
 } from 'ramda';
@@ -30,9 +29,18 @@ const bundle = (declaration = {}, options = {}) => {
   // These will change if the bundle is attached to another bundle as a child.
   const createTypeName = key => (name ? `${name}/${key}` : key);
   const selectState = name
-    ? path(slice(1, Infinity, name.split('.').concat(name)))
+    ? path(
+        name
+          .split('.')
+          .slice(1)
+          .concat(name)
+      )
     : identity;
-  const bundledReducers = mapObjKeys(createTypeName, reducers);
+
+  const bundledReducers = mapObjKeys(
+    createTypeName,
+    merge(reducers, { setState: merge })
+  );
 
   // Attach and update child bundles
   const childNodes = mapObjIndexed(
@@ -42,11 +50,6 @@ const bundle = (declaration = {}, options = {}) => {
 
   const reducer = (prevState = state, action) => {
     const { type, payload } = action;
-
-    // Is it a setState action?
-    if (type === createTypeName('setState')) {
-      return merge(prevState, payload);
-    }
 
     // Is it one of the bundle's reducers?
     const reducer = bundledReducers[type];
