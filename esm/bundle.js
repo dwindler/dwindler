@@ -54,10 +54,9 @@ const bundle = (declaration = {}, options = {}) => {
     // Is it one of the bundle's reducers?
     const reducer = bundledReducers[type];
     if (reducer) {
-      return merge(
-        prevState,
-        typeof reducer === 'function' ? reducer(prevState, payload) : reducer
-      );
+      return typeof reducer === 'function'
+        ? reducer(prevState, payload)
+        : merge(prevState, reducer);
     }
 
     // Pass to the children...

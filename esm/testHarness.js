@@ -69,6 +69,7 @@ export default (declaration, options = {}) => {
     },
     getErrors() {
       return errors;
-    }
+    },
+    getState: store.getState
   };
 };
